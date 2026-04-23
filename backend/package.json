@@ -2,10 +2,14 @@
   "name": "backend",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
+  "prisma": {
+  "seed": "node prisma/seed.js"
+},
+"scripts": {
   "start": "node src/app.js",
   "dev": "nodemon src/app.js",
-  "lint": "eslint src/**/*.js"
+  "lint": "eslint src/**/*.js",
+  "seed": "npx prisma db seed"
 },
   "keywords": [],
   "author": "",

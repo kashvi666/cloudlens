@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cloudlens_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cloudlens_user
+      POSTGRES_PASSWORD: cloudlens_pass
+      POSTGRES_DB: cloudlens_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # We'll add backend + frontend containers in Phase 3 (DevOps days)
+  # For now only DB runs in Docker; app runs natively for faster dev
+
+volumes:
+  pgdata:
