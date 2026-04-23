@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USERS & AUTH ───────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(VIEWER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  alerts       Alert[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  VIEWER
+  BILLING_MANAGER
+}
+
+// ─── COST RECORDS ────────────────────────────────────────────
+
+model CostRecord {
+  id            String   @id @default(cuid())
+  date          DateTime
+  service       String   // e.g. "Compute", "Storage", "Networking"
+  team          String   // e.g. "frontend", "backend", "devops"
+  project       String   // e.g. "cloudlens-prod", "data-pipeline"
+  cloudProvider String   @default("Azure") // Azure | AWS (mock)
+  costUsd       Float
+  resourceCount Int      @default(1)
+  region        String   @default("East US")
+  createdAt     DateTime @default(now())
+
+  @@index([date])
+  @@index([team])
+  @@index([service])
+  @@map("cost_records")
+}
+
+// ─── ALERTS ──────────────────────────────────────────────────
+
+model Alert {
+  id             String      @id @default(cuid())
+  name           String
+  thresholdUsd   Float       // Alert fires when daily cost exceeds this
+  service        String?     // null = apply to all services
+  team           String?     // null = apply to all teams
+  status         AlertStatus @default(ACTIVE)
+  lastTriggeredAt DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relations
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  createdById String
+
+  remediations RemediationLog[]
+
+  @@map("alerts")
+}
+
+enum AlertStatus {
+  ACTIVE
+  PAUSED
+  TRIGGERED
+}
+
+// ─── RESOURCES ───────────────────────────────────────────────
+
+model Resource {
+  id           String         @id @default(cuid())
+  name         String         // e.g. "vm-prod-001"
+  type         String         // e.g. "Virtual Machine", "Blob Storage"
+  team         String
+  project      String
+  status       ResourceStatus @default(RUNNING)
+  cpuUsage     Float          @default(0) // percentage 0-100
+  memoryUsage  Float          @default(0)
+  monthlyCostUsd Float        @default(0)
+  region       String         @default("East US")
+  cloudProvider String        @default("Azure")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([team])
+  @@index([status])
+  @@map("resources")
+}
+
+enum ResourceStatus {
+  RUNNING
+  STOPPED
+  SCALED_DOWN  // set by auto-remediation
+  IDLE
+}
+
+// ─── AUTO-REMEDIATION LOGS ───────────────────────────────────
+
+model RemediationLog {
+  id          String   @id @default(cuid())
+  action      String   // e.g. "SCALE_DOWN", "STOP_IDLE"
+  description String
+  costBefore  Float
+  costAfter   Float
+  status      String   @default("SIMULATED")
+  createdAt   DateTime @default(now())
+
+  // Relations
+  alert   Alert  @relation(fields: [alertId], references: [id])
+  alertId String
+
+  @@map("remediation_logs")
+}
+
+// ─── AUDIT LOGS ──────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // e.g. "USER_CREATED", "ALERT_TRIGGERED"
+  entity    String   // e.g. "User", "Alert"
+  entityId  String
+  metadata  Json?    // any extra context
+  createdAt DateTime @default(now())
+
+  performedBy   User   @relation(fields: [performedById], references: [id])
+  performedById String
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}

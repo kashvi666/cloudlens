@@ -2,6 +2,8 @@
 node_modules/
 .pnp
 .pnp.js
+frontend/.next/
+frontend/out/
 
 # Build outputs
 .next/
@@ -31,7 +33,14 @@ Thumbs.db
 *.tfstate
 *.tfstate.*
 .terraform/
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
 
 # Docker
 *.log
 EOF
+
+# Misc
+.DS_Store
+*.log
