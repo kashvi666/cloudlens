@@ -17,6 +17,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Auth Routes
+const authRoutes = require("./routes/auth");
+
+app.use("/api/auth", authRoutes);
+
 // Placeholder routes (we'll fill these in over the next days)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/costs', require('./routes/costs'));
