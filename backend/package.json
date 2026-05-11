@@ -3,19 +3,20 @@
   "version": "1.0.0",
   "main": "index.js",
   "prisma": {
-  "seed": "node prisma/seed.js"
-},
-"scripts": {
-  "start": "node src/app.js",
-  "dev": "nodemon src/app.js",
-  "lint": "eslint src/**/*.js",
-  "seed": "npx prisma db seed"
-},
+    "seed": "node prisma/seed.js"
+  },
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "lint": "eslint src/**/*.js",
+    "seed": "npx prisma db seed"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@faker-js/faker": "^9.9.0",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",

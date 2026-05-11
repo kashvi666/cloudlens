@@ -1,132 +1,118 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const { generateCostRecords, generateResources } = require('../src/services/mockCostService');
 
 const prisma = new PrismaClient();
 
-const SERVICES = ['Compute', 'Storage', 'Networking', 'Database', 'Functions'];
-const TEAMS = ['frontend', 'backend', 'data', 'devops'];
-const PROJECTS = ['cloudlens-prod', 'data-pipeline', 'api-gateway', 'ml-training'];
-const REGIONS = ['East US', 'West Europe', 'Southeast Asia'];
-
-function randomBetween(min, max) {
-  return parseFloat((Math.random() * (max - min) + min).toFixed(2));
-}
-
-function daysAgo(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d;
-}
-
 async function main() {
-  console.log('🌱 Seeding database...');
+  console.log('🌱 Starting CloudLens database seed...\n');
 
-  // 1. Create admin user
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@cloudlens.dev' },
-    update: {},
-    create: {
-      email: 'admin@cloudlens.dev',
-      passwordHash: await bcrypt.hash('Admin@123', 10),
-      name: 'Admin User',
-      role: 'ADMIN',
-    },
+  // ── Wipe existing data (clean slate) ─────────────────────
+  await prisma.auditLog.deleteMany();
+  await prisma.remediationLog.deleteMany();
+  await prisma.alert.deleteMany();
+  await prisma.costRecord.deleteMany();
+  await prisma.resource.deleteMany();
+  await prisma.user.deleteMany();
+  console.log('🗑️  Cleared existing data\n');
+
+  // ── Users ─────────────────────────────────────────────────
+  const [admin, viewer, billing] = await Promise.all([
+    prisma.user.create({
+      data: {
+        email: 'admin@cloudlens.dev',
+        passwordHash: await bcrypt.hash('Admin@123', 10),
+        name: 'Arjun Sharma',
+        role: 'ADMIN',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'viewer@cloudlens.dev',
+        passwordHash: await bcrypt.hash('Viewer@123', 10),
+        name: 'Priya Patel',
+        role: 'VIEWER',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'billing@cloudlens.dev',
+        passwordHash: await bcrypt.hash('Billing@123', 10),
+        name: 'Rahul Gupta',
+        role: 'BILLING_MANAGER',
+      },
+    }),
+  ]);
+  console.log('✅ Users created (3)\n');
+
+  // ── Cost Records (90 days) ────────────────────────────────
+  const costCount = await generateCostRecords(90);
+
+  // ── Resources ─────────────────────────────────────────────
+  const resourceCount = await generateResources();
+
+  // ── Alerts ────────────────────────────────────────────────
+  await prisma.alert.createMany({
+    data: [
+      {
+        name: 'Compute Spike Alert',
+        thresholdUsd: 150,
+        service: 'Compute',
+        team: null,
+        createdById: admin.id,
+      },
+      {
+        name: 'ML Training Cost Guard',
+        thresholdUsd: 200,
+        service: 'AI/ML',
+        team: 'ml',
+        createdById: admin.id,
+      },
+      {
+        name: 'Backend Team Budget Alert',
+        thresholdUsd: 100,
+        service: null,
+        team: 'backend',
+        createdById: billing.id,
+      },
+    ],
   });
+  console.log('✅ Alerts created (3)\n');
 
-  // 2. Create viewer user
-  const viewer = await prisma.user.upsert({
-    where: { email: 'viewer@cloudlens.dev' },
-    update: {},
-    create: {
-      email: 'viewer@cloudlens.dev',
-      passwordHash: await bcrypt.hash('Viewer@123', 10),
-      name: 'Viewer User',
-      role: 'VIEWER',
-    },
+  // ── Audit Logs ────────────────────────────────────────────
+  await prisma.auditLog.createMany({
+    data: [
+      {
+        action: 'USER_CREATED',
+        entity: 'User',
+        entityId: viewer.id,
+        metadata: { method: 'seed' },
+        performedById: admin.id,
+      },
+      {
+        action: 'ALERT_CREATED',
+        entity: 'Alert',
+        entityId: 'seed-alert-1',
+        metadata: { threshold: 150 },
+        performedById: admin.id,
+      },
+    ],
   });
+  console.log('✅ Audit logs created\n');
 
-  // 3. Create billing manager
-  const billing = await prisma.user.upsert({
-    where: { email: 'billing@cloudlens.dev' },
-    update: {},
-    create: {
-      email: 'billing@cloudlens.dev',
-      passwordHash: await bcrypt.hash('Billing@123', 10),
-      name: 'Billing Manager',
-      role: 'BILLING_MANAGER',
-    },
-  });
-
-  console.log('✅ Users created');
-
-  // 4. Seed 60 days of cost records
-  const costData = [];
-  for (let day = 0; day < 60; day++) {
-    for (const service of SERVICES) {
-      costData.push({
-        date: daysAgo(day),
-        service,
-        team: TEAMS[Math.floor(Math.random() * TEAMS.length)],
-        project: PROJECTS[Math.floor(Math.random() * PROJECTS.length)],
-        cloudProvider: Math.random() > 0.8 ? 'AWS' : 'Azure',
-        costUsd: randomBetween(5, 80),
-        resourceCount: Math.floor(Math.random() * 15 + 1),
-        region: REGIONS[Math.floor(Math.random() * REGIONS.length)],
-      });
-    }
-  }
-  await prisma.costRecord.createMany({ data: costData });
-  console.log(`✅ ${costData.length} cost records seeded`);
-
-  // 5. Seed resources
-  const resourceTypes = ['Virtual Machine', 'Blob Storage', 'SQL Database', 'App Service', 'Functions'];
-  const resourceData = [];
-  for (let i = 0; i < 20; i++) {
-    resourceData.push({
-      name: `resource-${TEAMS[i % 4]}-${String(i).padStart(3, '0')}`,
-      type: resourceTypes[i % resourceTypes.length],
-      team: TEAMS[i % TEAMS.length],
-      project: PROJECTS[i % PROJECTS.length],
-      status: i % 5 === 0 ? 'IDLE' : 'RUNNING',
-      cpuUsage: randomBetween(5, 95),
-      memoryUsage: randomBetween(10, 90),
-      monthlyCostUsd: randomBetween(20, 300),
-      region: REGIONS[i % REGIONS.length],
-    });
-  }
-  await prisma.resource.createMany({ data: resourceData });
-  console.log(`✅ ${resourceData.length} resources seeded`);
-
-  // 6. Seed an alert
-  const alert = await prisma.alert.create({
-    data: {
-      name: 'High Compute Cost Alert',
-      thresholdUsd: 100,
-      service: 'Compute',
-      team: null,
-      createdById: admin.id,
-    },
-  });
-  console.log('✅ Sample alert created');
-
-  // 7. Seed audit log
-  await prisma.auditLog.create({
-    data: {
-      action: 'USER_CREATED',
-      entity: 'User',
-      entityId: viewer.id,
-      metadata: { createdBy: 'seed' },
-      performedById: admin.id,
-    },
-  });
-  console.log('✅ Audit log seeded');
-
-  console.log('\n🎉 Database seeded successfully!');
-  console.log('   Admin:   admin@cloudlens.dev   / Admin@123');
-  console.log('   Viewer:  viewer@cloudlens.dev  / Viewer@123');
-  console.log('   Billing: billing@cloudlens.dev / Billing@123');
+  console.log('━'.repeat(50));
+  console.log('🎉 Seed complete!\n');
+  console.log(`   Cost records : ${costCount}`);
+  console.log(`   Resources    : ${resourceCount}`);
+  console.log(`   Users        : 3`);
+  console.log(`   Alerts       : 3\n`);
+  console.log('   Login credentials:');
+  console.log('   admin@cloudlens.dev   / Admin@123   (ADMIN)');
+  console.log('   viewer@cloudlens.dev  / Viewer@123  (VIEWER)');
+  console.log('   billing@cloudlens.dev / Billing@123 (BILLING_MANAGER)');
+  console.log('━'.repeat(50));
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
+  .catch((e) => { console.error('❌ Seed failed:', e); process.exit(1); })
   .finally(() => prisma.$disconnect());
