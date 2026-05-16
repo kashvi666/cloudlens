@@ -22,7 +22,7 @@ async function main() {
       data: {
         email: 'admin@cloudlens.dev',
         passwordHash: await bcrypt.hash('Admin@123', 10),
-        name: 'Arjun Sharma',
+        name: 'Moksh Sharma',
         role: 'ADMIN',
       },
     }),

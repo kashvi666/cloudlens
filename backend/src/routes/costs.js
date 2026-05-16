@@ -1,71 +1,53 @@
 const router = require('express').Router();
-const { authenticate }  = require('../middleware/auth');
-const { requireRole }   = require('../middleware/rbac');
-const svc               = require('../services/mockCostService');
+const { authenticate } = require('../middleware/auth');
+const { requireRole }  = require('../middleware/rbac');
+const svc              = require('../services/mockCostService');
 
-// Every cost route needs a valid JWT
-router.use(authenticate);
+router.use(authenticate); // all cost routes need login
 
-// ── GET /api/costs/filter-options ─────────────────────────────
-// Returns distinct teams, services, projects for dropdown menus
+// Viewers can read all cost data
 router.get('/filter-options', async (req, res, next) => {
-  try {
-    const data = await svc.getFilterOptions();
-    res.json(data);
-  } catch (err) { next(err); }
+  try { res.json(await svc.getFilterOptions()); }
+  catch (err) { next(err); }
 });
 
-// ── GET /api/costs/summary ────────────────────────────────────
-// ?days=30  &team=backend  &service=Compute  &project=xyz
-// &from=2025-01-01  &to=2025-01-31
 router.get('/summary', async (req, res, next) => {
-  try {
-    const data = await svc.getSummary(req.query);
-    res.json(data);
-  } catch (err) { next(err); }
+  try { res.json(await svc.getSummary(req.query)); }
+  catch (err) { next(err); }
 });
 
-// ── GET /api/costs/daily ──────────────────────────────────────
-// Returns array of { date, total, breakdown:{service->cost} }
 router.get('/daily', async (req, res, next) => {
-  try {
-    const data = await svc.getDailyCosts(req.query);
-    res.json({ data, filters: req.query });
-  } catch (err) { next(err); }
+  try { res.json({ data: await svc.getDailyCosts(req.query), filters: req.query }); }
+  catch (err) { next(err); }
 });
 
-// ── GET /api/costs/by-service ─────────────────────────────────
 router.get('/by-service', async (req, res, next) => {
-  try {
-    const data = await svc.getCostByService(req.query);
-    res.json({ data });
-  } catch (err) { next(err); }
+  try { res.json({ data: await svc.getCostByService(req.query) }); }
+  catch (err) { next(err); }
 });
 
-// ── GET /api/costs/by-team ────────────────────────────────────
 router.get('/by-team', async (req, res, next) => {
-  try {
-    const data = await svc.getCostByTeam(req.query);
-    res.json({ data });
-  } catch (err) { next(err); }
+  try { res.json({ data: await svc.getCostByTeam(req.query) }); }
+  catch (err) { next(err); }
 });
 
-// ── GET /api/costs/by-project ─────────────────────────────────
 router.get('/by-project', async (req, res, next) => {
-  try {
-    const data = await svc.getCostByProject(req.query);
-    res.json({ data });
-  } catch (err) { next(err); }
+  try { res.json({ data: await svc.getCostByProject(req.query) }); }
+  catch (err) { next(err); }
 });
 
-// ── GET /api/costs/records ────────────────────────────────────
-// Paginated raw records for the data table
-// ?page=1  &limit=20  &team=backend  &service=Compute
 router.get('/records', async (req, res, next) => {
-  try {
-    const data = await svc.getRawRecords(req.query);
-    res.json(data);
-  } catch (err) { next(err); }
+  try { res.json(await svc.getRawRecords(req.query)); }
+  catch (err) { next(err); }
+});
+
+// ── Write operations — Billing Manager + Admin only ───────────
+// (Export or budget config would go here in future days)
+router.post('/export', requireRole('BILLING_MANAGER'), async (req, res) => {
+  res.json({ message: 'Export feature — coming Day 15', role: req.user.role });
 });
 
 module.exports = router;
+
+
+

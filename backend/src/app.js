@@ -22,11 +22,12 @@ const authRoutes = require("./routes/auth");
 
 app.use("/api/auth", authRoutes);
 
-// Placeholder routes (we'll fill these in over the next days)
+// Placeholder routes 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/costs', require('./routes/costs'));
 app.use('/api/alerts', require('./routes/alerts'));
 app.use('/api/resources', require('./routes/resources'));
+app.use('/api/users', require('./routes/users'));
 
 // Global error handler
 app.use((err, req, res, next) => {

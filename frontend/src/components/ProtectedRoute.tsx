@@ -3,10 +3,13 @@
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import AccessDenied from './AccessDenied';
+
+type Role = 'ADMIN' | 'VIEWER' | 'BILLING_MANAGER';
 
 interface Props {
-  children: React.ReactNode;
-  allowedRoles?: ('ADMIN' | 'VIEWER' | 'BILLING_MANAGER')[];
+  children:     React.ReactNode;
+  allowedRoles?: Role[];
 }
 
 export default function ProtectedRoute({ children, allowedRoles }: Props) {
@@ -14,13 +17,8 @@ export default function ProtectedRoute({ children, allowedRoles }: Props) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.replace('/auth/login');
-    }
-    if (!isLoading && user && allowedRoles && !allowedRoles.includes(user.role)) {
-      router.replace('/dashboard'); // redirect non-admin away from admin pages
-    }
-  }, [user, isLoading, allowedRoles, router]);
+    if (!isLoading && !user) router.replace('/auth/login');
+  }, [user, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -34,7 +32,11 @@ export default function ProtectedRoute({ children, allowedRoles }: Props) {
   }
 
   if (!user) return null;
-  if (allowedRoles && !allowedRoles.includes(user.role)) return null;
+
+  // Role check — show access denied instead of blank/redirect
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <AccessDenied requiredRole={allowedRoles[0]} />;
+  }
 
   return <>{children}</>;
 }
